@@ -70,7 +70,12 @@ export default function EmailPage() {
   });
 
   function handleSave() {
-    saveMutation.mutate(form as any);
+    const { toEmails, ...rest } = form;
+    const recipients = toEmails
+      .split(/[,;，；\s]+/)
+      .map(e => e.trim())
+      .filter(e => e.length > 0);
+    saveMutation.mutate({ ...rest, recipients } as any);
   }
 
   function handleTest() {
