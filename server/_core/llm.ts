@@ -163,7 +163,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   const rf = responseFormat || response_format;
   if (rf) {
-    payload.response_format = rf;
+    // DeepSeek doesn't support json_schema, convert to json_object
+    if (rf.type === "json_schema") {
+      payload.response_format = { type: "json_object" };
+    } else {
+      payload.response_format = rf;
+    }
   }
 
   const response = await fetch(apiUrl, {
