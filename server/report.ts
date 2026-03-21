@@ -90,27 +90,12 @@ export async function summarizeNews(articleList: Article[]): Promise<string> {
     return "当前日期范围内没有通过筛选的新闻。";
   }
 
-  // 1. 先翻译标题
-  const titles = articleList.map(a => a.title);
-  const translations = await batchTranslateTitles(titles);
-  for (let i = 0; i < articleList.length; i++) {
-    if (!articleList[i].titleCn && translations[i] !== articleList[i].title) {
-      articleList[i].titleCn = translations[i];
-    }
-  }
+  // 只发送标题列表给LLM进行总结
+  const titlesText = articleList.map((a, idx) => {
+    const source = a.sourceName ? ` [${a.sourceName}]` : "";
+    return `${idx + 1}. ${a.title}${source}`;
+  }).join("\n");
 
-  // 2. 构建新闻列表文本（包含标题、翻译、来源、链接）
-  const newsListText = articleList.map((a, idx) => {
-    const cnTitle = a.titleCn && a.titleCn !== a.title ? `\n   中文: ${a.titleCn}` : "";
-    const source = a.sourceName ? `\n   来源: ${a.sourceName}` : "";
-    const link = a.url ? `\n   链接: ${a.url}` : "";
-    const keywords = (a.matchedKeywords as string[] | null)?.length
-      ? `\n   关键词: ${(a.matchedKeywords as string[]).join(", ")}`
-      : "";
-    return `${idx + 1}. ${a.title}${cnTitle}${source}${keywords}${link}`;
-  }).join("\n\n");
-
-  // 3. 调用LLM生成总结
   try {
     const response = await invokeLLM({
       messages: [
@@ -121,14 +106,14 @@ export async function summarizeNews(articleList: Article[]): Promise<string> {
 要求：
 1. 按主题分类归纳（如：交易所动态、监管政策、市场结构、技术创新、跨境合作等）
 2. 每个主题下用2-3句话概括要点
-3. 在总结中引用具体的新闻标题（保留原文标题）和对应链接
+3. 在总结中引用具体的新闻标题（保留原文标题）
 4. 最后给出1-2句整体趋势观察
 5. 使用Markdown格式输出
 6. 总结应基于提供的新闻标题内容，不要编造信息`,
         },
         {
           role: "user",
-          content: `以下是今日抓取到的 ${articleList.length} 条金融监管新闻：\n\n${newsListText}`,
+          content: `以下是今日抓取到的 ${articleList.length} 条金融监管新闻标题：\n\n${titlesText}`,
         },
       ],
     });
